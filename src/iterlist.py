@@ -29,7 +29,6 @@ class IterList(object):
     def _positive_index(self, index):
         """Private
 
-        If index is None, returns None
         If index is positive, it is returned.
         If index is negative, it is converted to a positive index referring to
         the same position
@@ -39,8 +38,6 @@ class IterList(object):
         :raise: IndexError if the magnitude of index is greater than the length
                 of the iterable
         """
-        if index is None:
-            return None
         if index >= 0:
             return index
         self._consume_rest()
@@ -207,7 +204,8 @@ class IterList(object):
         Raises ValueError if the value is not present.
         """
         start = self._positive_index(start)
-        stop = self._positive_index(stop)
+        if stop:
+            stop = self._positive_index(stop)
         for i, e in enumerate(itertools.islice(self, start, stop)):
             if e == item:
                 return i + start
