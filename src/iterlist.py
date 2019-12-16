@@ -1,13 +1,25 @@
+"""iterlist is a list-like interface for iterables."""
 import itertools
 izip = getattr(itertools, "izip", zip)  # python2 compatible iter zip
 
+
 class IterList(object):
+    """a list-like interface over an iterable that stores iterated values."""
+
     def __init__(self, iterable):
+        """Initialize
+
+        :type iterable: Iterable
+        """
         self._iterable = iter(iterable)
         self._list = list()
 
     @property
     def _exhausted(self):
+        """Private property
+
+        :return: True if the iterable has raised StopIteration
+        """
         try:
             self._consume_next()
             return False
@@ -15,16 +27,22 @@ class IterList(object):
             return True
 
     def _positive_index(self, index):
-        '''Returns positive list index for index
+        """Private
 
         If index is None, returns None
         If index is positive, it is returned.
         If index is negative, it is converted to a positive index referring to
         the same position
-        
-        '''
-        if index is None: return None
-        if index >= 0: return index
+
+        :rtype: int
+        :return: positive list index for index
+        :raise: IndexError if the magnitude of index is greater than the length
+                of the iterable
+        """
+        if index is None:
+            return None
+        if index >= 0:
+            return index
         self._consume_rest()
         pos = len(self._list) - abs(index)
         if pos < 0:
@@ -48,9 +66,9 @@ class IterList(object):
             self._consume_rest()
             return
         to_consume = index - len(self._list) + 1
-        for i in range(to_consume):
+        for _ in range(to_consume):
             self._consume_next()
-    
+
     def _consume_up_to_slice(self, sl):
         consume_to = None
         start, stop, step = sl.start, sl.stop, sl.step
@@ -100,7 +118,7 @@ class IterList(object):
     def __delitem__(self, index):
         self._consume_up_to(index)
         del self._list[index]
-        
+
     def __len__(self):
         self._consume_rest()
         return len(self._list)
@@ -117,12 +135,13 @@ class IterList(object):
     __nonzero__ = __bool__
 
     def extend(self, rest):
+        """Extend the list with an iterable."""
         self._iterable = itertools.chain(self._iterable, iter(rest))
 
     def __iadd__(self, rest):
         self.extend(rest)
         return self
-    
+
     def __repr__(self):
         self._consume_rest()
         return '[' + ', '.join(repr(item) for item in self._list) + ']'
@@ -138,10 +157,11 @@ class IterList(object):
         return not self == other
 
     def __lt__(self, other):
-        at_least_one_less = False
         for a, b in izip(self, other):
-            if b < a: return False
-            if a < b: return True
+            if b < a:
+                return False
+            if a < b:
+                return True
 
         # at this point all elements in both lists are equal
         # in this case, the shorter list is considered less
@@ -155,21 +175,37 @@ class IterList(object):
             pass
         return len(self._list) < len(other._list)
 
-    def sort(self):
+    def sort(self, key=None, reverse=False):
+        """Stable sort in-place.
+
+        Note: this will consume the entire iterable
+        """
         self._consume_rest()
-        self._list.sort()
+        self._list.sort(key=key, reverse=reverse)
 
     def reverse(self):
+        """Reverse in-place.
+
+        Note: this will consume the entire iterable
+        """
         self._consume_rest()
         self._list.reverse()
 
     def pop(self, index=-1):
+        """Remove and return item at index (default last).
+
+        Raises IndexError if list is empty or index is out of range.
+        """
         self._consume_up_to(index)
         item = self._list[index]
         del self._list[index]
         return item
 
     def index(self, item, start=0, stop=None):
+        """Return first index of item.
+
+        Raises ValueError if the value is not present.
+        """
         start = self._positive_index(start)
         stop = self._positive_index(stop)
         for i, e in enumerate(itertools.islice(self, start, stop)):
@@ -179,28 +215,40 @@ class IterList(object):
         raise ValueError('{} is not in list'.format(item))
 
     def count(self, item):
+        """Return number of occurrences of item.
+
+        Note: this will consume the entire iterable
+        """
         self._consume_rest()
         return self._list.count(item)
 
     def remove(self, item):
+        """Remove first occurrence of item.
+
+        Raises ValueError if the value is not present.
+        """
         del self[self.index(item)]
 
     def insert(self, index, item):
+        """Insert item before index."""
         self._consume_up_to(index)
         self._list.insert(index, item)
 
     def append(self, item):
+        """Append item to end.
+
+        Note: this will consume the entire iterable
+        """
         self._consume_rest()
         self._list.append(item)
 
     def clear(self):
-        '''Clears the list
+        """Clear the list
 
         Any unevaluated parts of the list will not be evaluated. This
         behavior may produce unexpected results if the evaluation of
         the remaining items has side effects.
-
-        '''
+        """
         del self._list[:]  # self._list.clear() for py3.3+
         self._iterable = iter([])
 
