@@ -355,6 +355,29 @@ class TestLessThan(unittest.TestCase):
         self.assertFalse(b < a)
 
 
+class TestIter(unittest.TestCase):
+    def test_iter_unconsumed(self):
+        orig = list(range(range_size))
+        lazy = iterlist.IterList(orig)
+        for ix, v in enumerate(lazy):
+            self.assertEqual(v, orig[ix])
+
+    def test_iter_partial_consumed(self):
+        orig = list(range(range_size))
+        lazy = iterlist.IterList(orig)
+        lazy[2]
+        self.assertEqual(len(lazy._list), 3)
+        for ix, v in enumerate(lazy):
+            self.assertEqual(v, orig[ix])
+
+    def test_iter_consume_while_iter(self):
+        orig = list(range(range_size))
+        lazy = iterlist.IterList(orig)
+        for ix, v in enumerate(lazy):
+            if ix == 3:
+                lazy[5]
+                self.assertEqual(len(lazy._list), 6)
+            self.assertEqual(v, orig[ix])
 
 
 if __name__ == '__main__':
