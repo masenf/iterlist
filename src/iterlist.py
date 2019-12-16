@@ -1,21 +1,29 @@
 """iterlist is a list-like interface for iterables."""
+# pylint: disable=C0103,R0205
+
 import itertools
 izip = getattr(itertools, "izip", zip)  # python2 compatible iter zip
+try:
+    from typing import Any, Callable, Iterable, Iterator, List, Optional, Union
+except ImportError:
+    pass  # typing is only used for static analysis
 
 
 class IterList(object):
     """a list-like interface over an iterable that stores iterated values."""
 
     def __init__(self, iterable):
+        # type: (Iterable) -> None
         """Initialize
 
         :type iterable: Iterable
         """
         self._iterable = iter(iterable)
-        self._list = list()
+        self._list = list()  # type: List[Any]
 
     @property
     def _exhausted(self):
+        # type: () -> bool
         """Private property
 
         :return: True if the iterable has raised StopIteration
@@ -27,6 +35,7 @@ class IterList(object):
             return True
 
     def _positive_index(self, index):
+        # type: (int) -> int
         """Private
 
         If index is positive, it is returned.
@@ -47,6 +56,7 @@ class IterList(object):
         return pos
 
     def _consume_next(self):
+        # type: () -> None
         exhausted = False
         try:
             self._list.append(next(self._iterable))
@@ -56,9 +66,11 @@ class IterList(object):
             raise IndexError
 
     def _consume_rest(self):
+        # type: () -> None
         self._list.extend(self._iterable)
 
     def _consume_up_to_index(self, index):
+        # type: (int) -> None
         if index < 0:
             self._consume_rest()
             return
@@ -67,6 +79,7 @@ class IterList(object):
             self._consume_next()
 
     def _consume_up_to_slice(self, sl):
+        # type: (slice) -> None
         consume_to = None
         start, stop, step = sl.start, sl.stop, sl.step
         if start is None:
@@ -97,6 +110,7 @@ class IterList(object):
         self._consume_up_to(consume_to)
 
     def _consume_up_to(self, key):
+        # type: (Optional[Union[slice, int]]) -> None
         if key is None:
             return
         if isinstance(key, slice):
@@ -105,22 +119,27 @@ class IterList(object):
             self._consume_up_to_index(key)
 
     def __getitem__(self, index):
+        # type: (Union[slice, int]) -> Any
         self._consume_up_to(index)
         return self._list[index]
 
     def __setitem__(self, index, value):
+        # type: (Union[slice, int], Any) -> None
         self._consume_up_to(index)
         self._list[index] = value
 
     def __delitem__(self, index):
+        # type: (Union[slice, int]) -> None
         self._consume_up_to(index)
         del self._list[index]
 
     def __len__(self):
+        # type: () -> int
         self._consume_rest()
         return len(self._list)
 
     def __bool__(self):
+        # type: () -> bool
         if self._list:
             return True
         try:
@@ -132,28 +151,34 @@ class IterList(object):
     __nonzero__ = __bool__
 
     def extend(self, rest):
+        # type: (Iterable) -> None
         """Extend the list with an iterable."""
         self._iterable = itertools.chain(self._iterable, iter(rest))
 
     def __iadd__(self, rest):
+        # type: (Iterable) -> IterList
         self.extend(rest)
         return self
 
     def __repr__(self):
+        # type: () -> str
         self._consume_rest()
         return '[' + ', '.join(repr(item) for item in self._list) + ']'
 
     def __eq__(self, other):
+        # type: (Any) -> bool
         return (all(a == b for a, b in izip(self, other))
                 and self._exhausted
                 and (isinstance(other, list) or other._exhausted)
                 and len(self) == len(other))
 
     def __ne__(self, other):
+        # type: (Any) -> bool
         # python 2 requires __ne__ or assumes no object is equal
         return not self == other
 
     def __lt__(self, other):
+        # type: (Any) -> bool
         for a, b in izip(self, other):
             if b < a:
                 return False
@@ -173,6 +198,7 @@ class IterList(object):
         return len(self._list) < len(other._list)
 
     def sort(self, key=None, reverse=False):
+        # type: (Optional[Callable[[Any], bool]], bool) -> None
         """Stable sort in-place.
 
         Note: this will consume the entire iterable
@@ -181,6 +207,7 @@ class IterList(object):
         self._list.sort(key=key, reverse=reverse)
 
     def reverse(self):
+        # type: () -> None
         """Reverse in-place.
 
         Note: this will consume the entire iterable
@@ -189,6 +216,7 @@ class IterList(object):
         self._list.reverse()
 
     def pop(self, index=-1):
+        # type: (int) -> Any
         """Remove and return item at index (default last).
 
         Raises IndexError if list is empty or index is out of range.
@@ -199,6 +227,7 @@ class IterList(object):
         return item
 
     def index(self, item, start=0, stop=None):
+        # type: (Any, int, Optional[int]) -> int
         """Return first index of item.
 
         Raises ValueError if the value is not present.
@@ -213,6 +242,7 @@ class IterList(object):
         raise ValueError('{} is not in list'.format(item))
 
     def count(self, item):
+        # type: (Any) -> int
         """Return number of occurrences of item.
 
         Note: this will consume the entire iterable
@@ -221,6 +251,7 @@ class IterList(object):
         return self._list.count(item)
 
     def remove(self, item):
+        # type: (Any) -> None
         """Remove first occurrence of item.
 
         Raises ValueError if the value is not present.
@@ -228,11 +259,13 @@ class IterList(object):
         del self[self.index(item)]
 
     def insert(self, index, item):
+        # type: (int, Any) -> None
         """Insert item before index."""
         self._consume_up_to(index)
         self._list.insert(index, item)
 
     def append(self, item):
+        # type: (Any) -> None
         """Append item to end.
 
         Note: this will consume the entire iterable
@@ -241,6 +274,7 @@ class IterList(object):
         self._list.append(item)
 
     def clear(self):
+        # type: () -> None
         """Clear the list
 
         Any unevaluated parts of the list will not be evaluated. This
@@ -251,6 +285,7 @@ class IterList(object):
         self._iterable = iter([])
 
     def __iter__(self):
+        # type: () -> Iterator[Any]
         ix = 0
         try:
             # Use a while loop over the list index to ensure all items are
