@@ -1,11 +1,11 @@
-#!/usr/bin/env python3
-
-import unittest
 import itertools
+import math
+import unittest
 
 import iterlist
 
 range_size = 10
+half_range = int(math.ceil(range_size / 2))
 
 
 class TestGetItem(unittest.TestCase):
@@ -17,7 +17,6 @@ class TestGetItem(unittest.TestCase):
         self.assertEqual(len(lazy), range_size)
         for a, b in zip(lazy._list, range(range_size)):
             self.assertEqual(a, b)
-            
 
     def test_all_at_once(self):
         lazy = iterlist.IterList(range(range_size))
@@ -28,6 +27,89 @@ class TestGetItem(unittest.TestCase):
         lazy = iterlist.IterList(range(range_size))
         for i in range(range_size):
             self.assertEqual(lazy[-(i + 1)], range_size - i - 1)
+
+    def test_slice_copy(self):
+        lazy = iterlist.IterList(range(range_size))
+        slz = lazy[:]
+        self.assertEqual(len(slz), range_size)
+        self.assertEqual(len(lazy._list), range_size)
+
+    def test_slice_from_implicit_zero(self):
+        lazy = iterlist.IterList(range(range_size))
+        slz = lazy[:half_range]
+        self.assertEqual(len(slz), half_range)
+        self.assertEqual(len(lazy._list), half_range)
+
+    def test_slice_from_explicit_zero(self):
+        lazy = iterlist.IterList(range(range_size))
+        slz = lazy[0:half_range]
+        self.assertEqual(len(slz), half_range)
+        self.assertEqual(len(lazy._list), half_range)
+
+    def test_slice_from_positive(self):
+        lazy = iterlist.IterList(range(range_size))
+        slz = lazy[1:half_range]
+        self.assertEqual(len(slz), half_range-1)
+        self.assertEqual(len(lazy._list), half_range)
+
+    def test_slice_from_positive_to_end(self):
+        lazy = iterlist.IterList(range(range_size))
+        slz = lazy[2:]
+        self.assertEqual(len(slz), range_size-2)
+        self.assertEqual(len(lazy._list), range_size)
+
+    def test_slice_from_negative(self):
+        lazy = iterlist.IterList(range(range_size))
+        slz = lazy[-2:]
+        self.assertEqual(len(slz), 2)
+        self.assertEqual(len(lazy._list), range_size)
+
+    def test_slice_from_negative_stop(self):
+        lazy = iterlist.IterList(range(range_size))
+        slz = lazy[-3:-1]
+        self.assertEqual(len(slz), 2)
+        self.assertEqual(len(lazy._list), range_size)
+
+    def test_slice_reversed(self):
+        orig = list(range(range_size))
+        lazy = iterlist.IterList(orig)
+        neg_slz = lazy[half_range::-1]
+        self.assertEqual(neg_slz, orig[half_range::-1])
+        self.assertEqual(len(neg_slz), half_range + 1)
+        self.assertEqual(len(lazy._list), half_range + 1)
+
+    def test_slice_reversed_by_1(self):
+        orig = list(range(range_size))
+        lazy = iterlist.IterList(orig)
+        neg_slz = lazy[half_range:0:-1]
+        self.assertEqual(neg_slz, orig[half_range:0:-1])
+        self.assertEqual(len(neg_slz), half_range)
+        self.assertEqual(len(lazy._list), half_range + 1)
+
+    def test_slice_by_2(self):
+        lazy = iterlist.IterList(range(range_size))
+        exp_size = int(math.floor(half_range / 2))
+        slz = lazy[0:half_range:2]
+        self.assertEqual(len(slz), exp_size)
+        self.assertLessEqual(len(lazy._list), half_range)
+
+    def test_slice_reversed_by_2(self):
+        orig = list(range(range_size))
+        lazy = iterlist.IterList(orig)
+        exp_size = int(math.floor((half_range + 1) / 2))
+        neg_slz = lazy[half_range::-2]
+        self.assertEqual(neg_slz, orig[half_range::-2])
+        self.assertEqual(len(neg_slz), exp_size)
+        self.assertEqual(len(lazy._list), half_range + 1)
+
+    def test_slice_empty_case(self):
+        lazy = iterlist.IterList(range(range_size))
+        empty_slz = lazy[0:half_range:-1]
+        self.assertEqual(empty_slz, [])
+        self.assertEqual(len(lazy._list), 0)
+        empty_slz2 = lazy[half_range:0]
+        self.assertEqual(empty_slz2, [])
+        self.assertEqual(len(lazy._list), 0)
 
 class TestSetItem(unittest.TestCase):
     def test_zero_out(self):
