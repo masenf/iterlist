@@ -1,4 +1,5 @@
 import itertools
+izip = getattr(itertools, "izip", zip)  # python2 compatible iter zip
 
 class IterList(object):
     def __init__(self, iterable):
@@ -98,6 +99,8 @@ class IterList(object):
         except IndexError:
             return False
 
+    __nonzero__ = __bool__
+
     def extend(self, rest):
         self._iterable = itertools.chain(self._iterable, iter(rest))
 
@@ -110,14 +113,18 @@ class IterList(object):
         return '[' + ', '.join(repr(item) for item in self._list) + ']'
 
     def __eq__(self, other):
-        return (all(a == b for a, b in zip(self, other))
+        return (all(a == b for a, b in izip(self, other))
                 and self._exhausted
                 and (isinstance(other, list) or other._exhausted)
                 and len(self) == len(other))
 
+    def __ne__(self, other):
+        # python 2 requires __ne__ or assumes no object is equal
+        return not self == other
+
     def __lt__(self, other):
         at_least_one_less = False
-        for a, b in zip(self, other):
+        for a, b in izip(self, other):
             if b < a: return False
             if a < b: return True
 
@@ -179,5 +186,5 @@ class IterList(object):
         the remaining items has side effects.
 
         '''
-        self._list.clear()
+        del self._list[:]  # self._list.clear() for py3.3+
         self._iterable = iter([])
