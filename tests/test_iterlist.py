@@ -268,6 +268,11 @@ class TestIndex(unittest.TestCase):
         self.assertEqual(lazy.index(9, 5), 9)
         self.assertEqual(lazy.index(2, 0, -2), 2)
         self.assertEqual(lazy.index(5, -7, -2), 5)
+
+    def test_negative_index_wraps(self):
+        lazy = iterlist.IterList(range(range_size))
+        with self.assertRaises(IndexError):
+                self.assertEqual(lazy.index(9, -2*range_size), 9)
         
 
 class TestCount(unittest.TestCase):
