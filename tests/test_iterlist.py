@@ -170,6 +170,15 @@ class TestBool(unittest.TestCase):
         self.assertTrue(iterlist.IterList(range(1)))
         self.assertTrue(iterlist.IterList([1]))
 
+    def test_for_true_already_consumed(self):
+        lazy = iterlist.IterList(range(2))
+        self.assertEqual(len(lazy._list), 0)
+        lazy[0]
+        self.assertEqual(len(lazy._list), 1)
+        self.assertTrue(lazy)
+        self.assertEqual(len(lazy._list), 1)
+
+
 class TestExtend(unittest.TestCase):
     def test_two_range(self):
         lazy = iterlist.IterList(range(10))
