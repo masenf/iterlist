@@ -1,6 +1,6 @@
 import itertools
 
-class List:
+class IterList(object):
     def __init__(self, iterable):
         self._iterable = iter(iterable)
         self._list = list()
