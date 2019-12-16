@@ -14,17 +14,6 @@ class IterList(object):
         except IndexError:
             return True
 
-    def _slice_max(self, sl):
-        start, stop, step = sl.start, sl.stop, sl.step
-        if step == None:
-            step = 1
-        if step > 0 and stop > start:
-            return stop - ((stop - start) % step)
-        elif step < 0 and stop < start:
-            return stop + ((start - stop) % (-step))
-        else:
-            return 0
-
     def _positive_index(self, index):
         '''Returns positive list index for index
 
@@ -63,12 +52,38 @@ class IterList(object):
             self._consume_next()
     
     def _consume_up_to_slice(self, sl):
-        if sl.start < 0 or sl.stop < 0:
-            self._consume_rest()
+        consume_to = None
+        start, stop, step = sl.start, sl.stop, sl.step
+        if start is None:
+            start = 0
+        if stop is None:
+            stop = 0
+        if step is None:
+            step = 1
+
+        if sl.start is None and sl.stop is None:
+            # full slice
+            consume_to = -1
+        elif start < 0 or stop < 0:
+            # negative slice, must consume the whole iterator
+            consume_to = min(start, stop)
+        elif step > 0 and sl.stop is None:
+            # positive slice, no end specified
+            consume_to = -1
+        elif step > 0 and stop > start:
+            # positive slice
+            consume_to = stop - ((stop - start) % step) - 1
+        elif step < 0 and stop < start:
+            # reversed slice will always include the item at index start
+            consume_to = start
         else:
-            self._consume_up_to(self._slice_max(sl))
+            # empty slice, nothing to consume
+            pass
+        self._consume_up_to(consume_to)
 
     def _consume_up_to(self, key):
+        if key is None:
+            return
         if isinstance(key, slice):
             self._consume_up_to_slice(key)
         else:
