@@ -203,3 +203,16 @@ class IterList(object):
         '''
         del self._list[:]  # self._list.clear() for py3.3+
         self._iterable = iter([])
+
+    def __iter__(self):
+        ix = 0
+        try:
+            # Use a while loop over the list index to ensure all items are
+            # yielded, even if some of the iterable is consumed while __iter__
+            # is stopped
+            while True:
+                self._consume_up_to_index(ix)
+                yield self._list[ix]
+                ix += 1
+        except IndexError:
+            return
