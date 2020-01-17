@@ -232,6 +232,26 @@ class TestEquality(unittest.TestCase):
         self.assertFalse(a == b)
         self.assertTrue(a != b)
 
+    def test_with_bare_iterable(self):
+        a = iterlist.IterList(range(range_size))
+        b = (v for v in range(range_size))
+        self.assertFalse(a == b)
+        self.assertTrue(a != b)
+        # checking equality shouldn't have collapsed the generator
+        b2 = tuple(b)
+        self.assertTrue(a == b2)
+        self.assertFalse(a != b2)
+
+    def test_with_bare_iterable_different_length(self):
+        a = iterlist.IterList(range(range_size))
+        b = (v for v in range(range_size + 1))
+        self.assertFalse(a == b)
+        self.assertTrue(a != b)
+        # checking equality shouldn't have collapsed the generator
+        b2 = tuple(b)
+        self.assertFalse(a == b2)
+        self.assertTrue(a != b2)
+
 class TestReversed(unittest.TestCase):
     def test_backwards_range(self):
         lazy = iterlist.IterList(range(range_size))
