@@ -22,19 +22,6 @@ class IterList(object):
         self._iterable = iter(iterable)
         self._list = list()  # type: List[Any]
 
-    @property
-    def _exhausted(self):
-        # type: () -> bool
-        """Private property
-
-        :return: True if the iterable has raised StopIteration
-        """
-        try:
-            self._consume_next()
-            return False
-        except IndexError:
-            return True
-
     def _positive_index(self, index):
         # type: (int) -> int
         """Private
