@@ -226,6 +226,18 @@ class TestEquality(unittest.TestCase):
         self.assertTrue(a == b)
         self.assertFalse(a != b)
 
+    def test_with_tuple(self):
+        a = iterlist.IterList(range(range_size))
+        b = tuple(range(range_size))
+        self.assertTrue(a == b)
+        self.assertFalse(a != b)
+
+    def test_with_str(self):
+        a = "this is a test"
+        b = iterlist.IterList(a)
+        self.assertTrue(a == b)
+        self.assertFalse(a != b)
+
     def test_with_non_iterable(self):
         a = iterlist.IterList([])
         b = 0
