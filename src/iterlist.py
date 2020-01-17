@@ -1,7 +1,11 @@
 """iterlist is a list-like interface for iterables."""
 # pylint: disable=C0103,R0205
 
-from collections import Sequence
+try:
+    from collections.abc import Sequence
+except ImportError:
+    # python 2 compatible
+    from collections import Sequence
 import itertools
 izip = getattr(itertools, "izip", zip)  # python2 compatible iter zip
 try:
