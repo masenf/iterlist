@@ -1,6 +1,7 @@
 """iterlist is a list-like interface for iterables."""
 # pylint: disable=C0103,R0205
 
+from collections import Sequence
 import itertools
 izip = getattr(itertools, "izip", zip)  # python2 compatible iter zip
 try:
@@ -167,9 +168,9 @@ class IterList(object):
 
     def __eq__(self, other):
         # type: (Any) -> bool
+        if not isinstance(other, (IterList, Sequence)):
+            return False
         return (all(a == b for a, b in izip(self, other))
-                and self._exhausted
-                and (isinstance(other, list) or other._exhausted)
                 and len(self) == len(other))
 
     def __ne__(self, other):
