@@ -1,6 +1,11 @@
 """iterlist is a list-like interface for iterables."""
 # pylint: disable=C0103,R0205
 
+try:
+    from collections.abc import Sequence
+except ImportError:
+    # python 2 compatible
+    from collections import Sequence
 import itertools
 izip = getattr(itertools, "izip", zip)  # python2 compatible iter zip
 try:
@@ -20,19 +25,6 @@ class IterList(object):
         """
         self._iterable = iter(iterable)
         self._list = list()  # type: List[Any]
-
-    @property
-    def _exhausted(self):
-        # type: () -> bool
-        """Private property
-
-        :return: True if the iterable has raised StopIteration
-        """
-        try:
-            self._consume_next()
-            return False
-        except IndexError:
-            return True
 
     def _positive_index(self, index):
         # type: (int) -> int
@@ -167,9 +159,9 @@ class IterList(object):
 
     def __eq__(self, other):
         # type: (Any) -> bool
+        if not isinstance(other, (IterList, Sequence)):
+            return False
         return (all(a == b for a, b in izip(self, other))
-                and self._exhausted
-                and (isinstance(other, list) or other._exhausted)
                 and len(self) == len(other))
 
     def __ne__(self, other):
