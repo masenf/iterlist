@@ -268,9 +268,15 @@ class TestEquality(unittest.TestCase):
 
     def test_with_non_iterable(self):
         a = iterlist.IterList([])
-        b = 0
-        self.assertFalse(a == b)
-        self.assertTrue(a != b)
+        b = iterlist.IterTuple([])
+        c = iterlist.CachedIterator([])
+        d = 0
+        self.assertFalse(a == d)
+        self.assertTrue(a != d)
+        self.assertFalse(b == d)
+        self.assertTrue(b != d)
+        self.assertFalse(c == d)
+        self.assertTrue(c != d)
 
     def test_with_bare_iterable(self):
         a = iterlist.IterList(range(range_size))
@@ -419,6 +425,57 @@ class TestLessThan(unittest.TestCase):
         b = iterlist.IterList([2, -1])
         self.assertTrue(a < b)
         self.assertFalse(b < a)
+
+    def test_with_list(self):
+        a = iterlist.IterList(range(range_size))
+        b = iterlist.IterTuple(range(range_size))
+        c = list(range(-1, range_size-1))
+        d = list(range(1, range_size+1))
+        e = list(range(range_size))
+        self.assertTrue(a < d)
+        self.assertFalse(a < c)
+        self.assertFalse(a < e)
+        # cannot compare IterList and tuple
+        with self.assertRaises(TypeError):
+            self.assertTrue(b < d)
+        with self.assertRaises(TypeError):
+            self.assertFalse(b < c)
+        with self.assertRaises(TypeError):
+            self.assertFalse(b < e)
+        try:
+            self.assertFalse(d < a)
+            # XXX: doesn't actually do less than, always False
+            self.assertFalse(c < a)
+            self.assertFalse(e < a)
+        except TypeError:
+            # cannot compare list and IterList on py3
+            pass
+
+    def test_with_tuple(self):
+        a = iterlist.IterTuple(range(range_size))
+        b = iterlist.IterList(range(range_size))
+        c = tuple(range(-1, range_size-1))
+        d = tuple(range(1, range_size+1))
+        e = tuple(range(range_size))
+        self.assertTrue(a < d)
+        self.assertFalse(a < c)
+        self.assertFalse(a < e)
+        # cannot compare IterList and tuple
+        with self.assertRaises(TypeError):
+            self.assertTrue(b < d)
+        with self.assertRaises(TypeError):
+            self.assertFalse(b < c)
+        with self.assertRaises(TypeError):
+            self.assertFalse(b < e)
+        try:
+            self.assertFalse(d < a)
+            # XXX: doesn't actually do less than, always False
+            self.assertFalse(c < a)
+            self.assertFalse(e < a)
+        except TypeError:
+            # cannot compare tuple and IterTuple on py3
+            pass
+
 
 
 class TestIter(unittest.TestCase):
