@@ -159,15 +159,8 @@ class CachedIterator(object):
 
         # at this point all elements in both lists are equal
         # in this case, the shorter list is considered less
-        try:
-            self._consume_next()
-        except IndexError:
-            pass
-        try:
-            other._consume_next()
-        except IndexError:
-            pass
-        return len(self._list) < len(other._list)
+        # NOTE: calling len will consume the remainder of both iterables
+        return len(self) < len(other)
 
     def index(self, item, start=0, stop=None):
         # type: (Any, int, Optional[int]) -> int
@@ -224,7 +217,11 @@ class IterTuple(CachedIterator):
     def __lt__(self, other):
         # type: (Union[tuple, IterTuple]) -> bool
         if not isinstance(other, (tuple, IterTuple)):
-            raise NotImplementedError
+            raise TypeError(
+                "'<' not supported between instances of {!r} and {!r}".format(
+                    type(self).__name__, type(other).__name__
+                )
+            )
         return super(IterTuple, self).__lt__(other)
 
 
@@ -244,7 +241,11 @@ class IterList(CachedIterator):
     def __lt__(self, other):
         # type: (Union[list, IterList]) -> bool
         if not isinstance(other, (list, IterList)):
-            raise NotImplementedError
+            raise TypeError(
+                "'<' not supported between instances of {!r} and {!r}".format(
+                    type(self).__name__, type(other).__name__
+                )
+            )
         return super(IterList, self).__lt__(other)
 
     def __setitem__(self, index, value):
