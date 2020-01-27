@@ -204,13 +204,13 @@ class IterTuple(CachedIterator):
     """a tuple-like interface over an iterable that stores iterated values."""
 
     def __eq__(self, other):
-        # type: (Union[tuple, IterTuple]) -> bool
+        # type: (Any) -> bool
         if not isinstance(other, (tuple, IterTuple)):
             return False
         return super(IterTuple, self).__eq__(other)
 
     def __lt__(self, other):
-        # type: (Union[tuple, IterTuple]) -> bool
+        # type: (Any) -> bool
         if not isinstance(other, (tuple, IterTuple)):
             raise TypeError(
                 "'<' not supported between instances of {!r} and {!r}".format(
@@ -228,13 +228,13 @@ class IterList(CachedIterator):
         return repr(list(self))
 
     def __eq__(self, other):
-        # type: (Union[list, IterList]) -> bool
+        # type: (Any) -> bool
         if not isinstance(other, (list, IterList)):
             return False
         return super(IterList, self).__eq__(other)
 
     def __lt__(self, other):
-        # type: (Union[list, IterList]) -> bool
+        # type: (Any) -> bool
         if not isinstance(other, (list, IterList)):
             raise TypeError(
                 "'<' not supported between instances of {!r} and {!r}".format(
