@@ -214,8 +214,8 @@ class IterTuple(CachedIterator):
         if not isinstance(other, (tuple, IterTuple)):
             raise TypeError(
                 "'<' not supported between instances of {!r} and {!r}".format(
-                    type(self).__name__, type(other).__name__
-                )
+                    type(self).__name__, type(other).__name__,
+                ),
             )
         return super(IterTuple, self).__lt__(other)
 
@@ -238,8 +238,8 @@ class IterList(CachedIterator):
         if not isinstance(other, (list, IterList)):
             raise TypeError(
                 "'<' not supported between instances of {!r} and {!r}".format(
-                    type(self).__name__, type(other).__name__
-                )
+                    type(self).__name__, type(other).__name__,
+                ),
             )
         return super(IterList, self).__lt__(other)
 
