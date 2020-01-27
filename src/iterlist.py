@@ -9,7 +9,7 @@ except ImportError:
 import itertools
 izip = getattr(itertools, "izip", zip)  # python2 compatible iter zip
 try:
-    from typing import Any, Callable, Iterable, Iterator, List, Optional, Union, Type
+    from typing import Any, Callable, Iterable, Iterator, List, Optional, Union
 except ImportError:
     pass  # typing is only used for static analysis
 
@@ -132,10 +132,9 @@ class CachedIterator(object):
 
     __nonzero__ = __bool__
 
-    def __repr__(self, cast=tuple):
-        # type: (Type) -> str
-        self._consume_rest()
-        return repr(cast(self._list))
+    def __repr__(self):
+        # type: () -> str
+        return repr(tuple(self))
 
     def __eq__(self, other):
         # type: (Any) -> bool
@@ -204,10 +203,6 @@ class CachedIterator(object):
 class IterTuple(CachedIterator):
     """a tuple-like interface over an iterable that stores iterated values."""
 
-    def __repr__(self):
-        # type: () -> str
-        return super(IterTuple, self).__repr__(cast=tuple)
-
     def __eq__(self, other):
         # type: (Union[tuple, IterTuple]) -> bool
         if not isinstance(other, (tuple, IterTuple)):
@@ -230,7 +225,7 @@ class IterList(CachedIterator):
 
     def __repr__(self):
         # type: () -> str
-        return super(IterList, self).__repr__(cast=list)
+        return repr(list(self))
 
     def __eq__(self, other):
         # type: (Union[list, IterList]) -> bool
