@@ -77,7 +77,7 @@ class CachedIterator(object):
         self._consume_rest()
         pos = len(self._list) - abs(index)
         if pos < 0:
-            raise IndexError('list index out of range')
+            raise IndexError("list index out of range")
         return pos
 
     def _consume_next(self):
@@ -173,8 +173,7 @@ class CachedIterator(object):
         # type: (Any) -> bool
         if not isinstance(other, (CachedIterator, Sequence)):
             return False
-        return (all(a == b for a, b in izip(self, other))
-                and len(self) == len(other))
+        return all(a == b for a, b in izip(self, other)) and len(self) == len(other)
 
     def __ne__(self, other):
         # type: (Any) -> bool
@@ -207,7 +206,7 @@ class CachedIterator(object):
             if e == item:
                 return i + start
 
-        raise ValueError('{} is not in list'.format(item))
+        raise ValueError("{} is not in list".format(item))
 
     def count(self, item):
         # type: (Any) -> int
