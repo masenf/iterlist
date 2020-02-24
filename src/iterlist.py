@@ -7,24 +7,57 @@ except ImportError:
     # python 2 compatible
     from collections import Sequence
 import itertools
+import threading
+
 izip = getattr(itertools, "izip", zip)  # python2 compatible iter zip
 try:
-    from typing import Any, Callable, Iterable, Iterator, List, Optional, Union
+    from typing import (
+        Any,
+        Callable,
+        ContextManager,
+        Iterable,
+        Iterator,
+        List,
+        Optional,
+        Union,
+    )
 except ImportError:
     pass  # typing is only used for static analysis
+
+
+class NullLock(object):
+    """A context manager that does nothing when used"""
+
+    def __enter__(self):
+        # type: () -> None
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # type: (Any, Any, Any) -> None
+        pass
 
 
 class CachedIterator(object):
     """a tuple-like interface over an iterable that stores iterated values."""
 
-    def __init__(self, iterable):
-        # type: (Iterable) -> None
+    def __init__(self, iterable, lock=None):
+        # type: (Iterable, Optional[Union[bool, ContextManager[Any]]]) -> None
         """Initialize
 
         :type iterable: Iterable
+        :param lock: If True, take a threading.RLock when stepping the iterator.
+            May also pass any lock implementation which can work as a contextmanager.
+            If None, no locking will be used.
         """
         self._iterable = iter(iterable)
         self._list = list()  # type: List[Any]
+        if lock is True:
+            self._lock = threading.RLock()  # type: ContextManager[Any]
+        elif not lock:
+            self._lock = NullLock()
+        else:
+            # definitely NOT a bool at this point, safe to assume ContextManager[Any]
+            self._lock = lock  # type: ignore
 
     def _positive_index(self, index):
         # type: (int) -> int
@@ -49,26 +82,26 @@ class CachedIterator(object):
 
     def _consume_next(self):
         # type: () -> None
-        exhausted = False
         try:
-            self._list.append(next(self._iterable))
+            with self._lock:
+                self._list.append(next(self._iterable))
         except StopIteration:
-            exhausted = True
-        if exhausted:
             raise IndexError
 
     def _consume_rest(self):
         # type: () -> None
-        self._list.extend(self._iterable)
+        with self._lock:
+            self._list.extend(self._iterable)
 
     def _consume_up_to_index(self, index):
         # type: (int) -> None
         if index < 0:
             self._consume_rest()
             return
-        to_consume = index - len(self._list) + 1
-        for _ in range(to_consume):
-            self._consume_next()
+        with self._lock:
+            to_consume = index - len(self._list) + 1
+            for _ in range(to_consume):
+                self._consume_next()
 
     def _consume_up_to_slice(self, sl):
         # type: (slice) -> None
