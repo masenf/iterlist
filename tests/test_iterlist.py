@@ -1,5 +1,8 @@
+import concurrent.futures
 import itertools
 import math
+import threading
+import time
 import unittest
 
 import iterlist
@@ -501,6 +504,28 @@ class TestIter(unittest.TestCase):
                 lazy[5]
                 self.assertEqual(len(lazy._list), 6)
             self.assertEqual(v, orig[ix])
+
+
+class TestConcurrentAccess(unittest.TestCase):
+    def test_multiple_iterators_with_lock(self, lock=True, delay=0.005, n_threads=5):
+        orig = list(range(range_size))
+        delay_generator = (ix for ix in orig if time.sleep(delay) is None)
+        lazy = iterlist.IterTuple(delay_generator, lock=lock)
+        with concurrent.futures.ThreadPoolExecutor(n_threads) as tp:
+            future_results = [tp.submit(lambda: [x for x in lazy]) for _ in
+                              range(n_threads)]
+            results = [f.result() for f in future_results]
+        for r in results:
+            self.assertEqual(r, orig)
+
+    def test_multiple_iterators_no_lock(self):
+        with self.assertRaises(ValueError) as ve:
+            self.test_multiple_iterators_with_lock(lock=False)
+        self.assertIn("generator already executing", str(ve.exception))
+
+    def test_multiple_iterators_pass_lock(self):
+        lock = threading.RLock()
+        self.test_multiple_iterators_with_lock(lock=lock)
 
 
 if __name__ == '__main__':
