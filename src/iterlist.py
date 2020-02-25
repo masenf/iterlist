@@ -358,9 +358,20 @@ class IterList(CachedIterator):
 class LockingCachedIterator(CachedIterator):
     """protect CachedIterator generator execution with an RLock"""
 
-    # subclasses may use a different lock implementation as long as it
-    # follows contextmanager protocol
-    lock_class = threading.RLock
+    @staticmethod
+    def lock_factory():
+        # type: () -> ContextManager[Any]
+        """
+        Return a contextmanager-like lock implementation.
+
+        The default lock is threading.RLock.
+
+        Subclasses may use a different lock implementation as long as it
+        follows contextmanager protocol and is re-entrant.
+
+        :return: the lock used to protect generator access
+        """
+        return threading.RLock()
 
     def __init__(self, iterable):
         # type: (Iterable) -> None
@@ -369,7 +380,7 @@ class LockingCachedIterator(CachedIterator):
         :type iterable: Iterable
         """
         super(LockingCachedIterator, self).__init__(iterable)
-        self._lock = self.lock_class()  # type: ContextManager[Any]
+        self._lock = self.lock_factory()
 
     def _consume_next(self):
         # type: () -> None
