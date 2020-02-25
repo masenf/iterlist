@@ -507,10 +507,10 @@ class TestIter(unittest.TestCase):
 
 
 class TestConcurrentAccess(unittest.TestCase):
-    def test_multiple_iterators_with_lock(self, lock=True, delay=0.005, n_threads=5):
+    def gen_test_multiple_iterators(self, iterlist_clz=iterlist.ThreadsafeIterTuple, delay=0.005, n_threads=5):
         orig = list(range(range_size))
         delay_generator = (ix for ix in orig if time.sleep(delay) is None)
-        lazy = iterlist.IterTuple(delay_generator, lock=lock)
+        lazy = iterlist_clz(delay_generator)
         with concurrent.futures.ThreadPoolExecutor(n_threads) as tp:
             future_results = [tp.submit(lambda: [x for x in lazy]) for _ in
                               range(n_threads)]
@@ -518,14 +518,17 @@ class TestConcurrentAccess(unittest.TestCase):
         for r in results:
             self.assertEqual(r, orig)
 
-    def test_multiple_iterators_no_lock(self):
-        with self.assertRaises(ValueError) as ve:
-            self.test_multiple_iterators_with_lock(lock=False)
-        self.assertIn("generator already executing", str(ve.exception))
+    def test_multiple_iterators_itertuple(self):
+        self.gen_test_multiple_iterators(iterlist_clz=iterlist.ThreadsafeIterTuple)
 
-    def test_multiple_iterators_pass_lock(self):
-        lock = threading.RLock()
-        self.test_multiple_iterators_with_lock(lock=lock)
+    def test_multiple_iterators_iterlist(self):
+        self.gen_test_multiple_iterators(iterlist_clz=iterlist.ThreadsafeIterList)
+
+    def test_multiple_iterators_no_lock(self):
+        with self.assertRaises(iterlist.ConcurrentGeneratorAccess) as cga:
+            self.gen_test_multiple_iterators(iterlist_clz=iterlist.IterTuple)
+        with self.assertRaises(iterlist.ConcurrentGeneratorAccess) as cga:
+            self.gen_test_multiple_iterators(iterlist_clz=iterlist.IterList)
 
 
 if __name__ == '__main__':
