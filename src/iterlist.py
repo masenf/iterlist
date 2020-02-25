@@ -62,6 +62,18 @@ class CachedIterator(object):
             raise IndexError("list index out of range")
         return pos
 
+    @staticmethod
+    def _warn_concurrent_access(exc):
+        # type: (BaseException) -> None
+        if "generator already executing" in str(exc):
+            # MJF: use raise from when py27 support is dropped
+            raise ConcurrentGeneratorAccess(
+                "Concurrent access to iterable detected. When using this interface"
+                "in a multithreaded environment, use ThreadsafeIterTuple, "
+                "ThreadsafeIterList, or mix in LockingCachedIterator ahead of "
+                "IterTuple or IterList bases.\nOriginal Exception: {}".format(exc),
+            )
+
     def _consume_next(self):
         # type: () -> None
         try:
@@ -69,18 +81,16 @@ class CachedIterator(object):
         except StopIteration:
             raise IndexError
         except ValueError as ve:
-            if "generator already executing" in str(ve):
-                # XXX: raise from when py27 support is dropped
-                raise ConcurrentGeneratorAccess(
-                    "Concurrent access to iterable detected. When using this interface"
-                    "in a multithreaded environment, use ThreadsafeIterTuple, "
-                    "ThreadsafeIterList, or mix in LockingCachedIterator ahead of "
-                    "IterTuple or IterList bases.\nOriginal Exception: {}".format(ve)
-                )
+            self._warn_concurrent_access(ve)
+            raise  # pragma: no cover
 
     def _consume_rest(self):
         # type: () -> None
-        self._list.extend(self._iterable)
+        try:
+            self._list.extend(self._iterable)
+        except ValueError as ve:
+            self._warn_concurrent_access(ve)
+            raise  # pragma: no cover
 
     def _consume_up_to_index(self, index):
         # type: (int) -> None
