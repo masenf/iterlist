@@ -25,39 +25,21 @@ except ImportError:
     pass  # typing is only used for static analysis
 
 
-class NullLock(object):
-    """A context manager that does nothing when used"""
-
-    def __enter__(self):
-        # type: () -> None
-        pass
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # type: (Any, Any, Any) -> None
-        pass
+class ConcurrentGeneratorAccess(ValueError):
+    """Raised when stepping a generator that is already executing"""
 
 
 class CachedIterator(object):
     """a tuple-like interface over an iterable that stores iterated values."""
 
-    def __init__(self, iterable, lock=None):
-        # type: (Iterable, Optional[Union[bool, ContextManager[Any]]]) -> None
+    def __init__(self, iterable):
+        # type: (Iterable) -> None
         """Initialize
 
         :type iterable: Iterable
-        :param lock: If True, take a threading.RLock when stepping the iterator.
-            May also pass any lock implementation which can work as a contextmanager.
-            If None, no locking will be used.
         """
         self._iterable = iter(iterable)
         self._list = list()  # type: List[Any]
-        if lock is True:
-            self._lock = threading.RLock()  # type: ContextManager[Any]
-        elif not lock:
-            self._lock = NullLock()
-        else:
-            # definitely NOT a bool at this point, safe to assume ContextManager[Any]
-            self._lock = lock  # type: ignore
 
     def _positive_index(self, index):
         # type: (int) -> int
@@ -83,25 +65,31 @@ class CachedIterator(object):
     def _consume_next(self):
         # type: () -> None
         try:
-            with self._lock:
-                self._list.append(next(self._iterable))
+            self._list.append(next(self._iterable))
         except StopIteration:
             raise IndexError
+        except ValueError as ve:
+            if "generator already executing" in str(ve):
+                # XXX: raise from when py27 support is dropped
+                raise ConcurrentGeneratorAccess(
+                    "Concurrent access to iterable detected. When using this interface"
+                    "in a multithreaded environment, use ThreadsafeIterTuple, "
+                    "ThreadsafeIterList, or mix in LockingCachedIterator ahead of "
+                    "IterTuple or IterList bases.\nOriginal Exception: {}".format(ve)
+                )
 
     def _consume_rest(self):
         # type: () -> None
-        with self._lock:
-            self._list.extend(self._iterable)
+        self._list.extend(self._iterable)
 
     def _consume_up_to_index(self, index):
         # type: (int) -> None
         if index < 0:
             self._consume_rest()
             return
-        with self._lock:
-            to_consume = index - len(self._list) + 1
-            for _ in range(to_consume):
-                self._consume_next()
+        to_consume = index - len(self._list) + 1
+        for _ in range(to_consume):
+            self._consume_next()
 
     def _consume_up_to_slice(self, sl):
         # type: (slice) -> None
@@ -357,3 +345,47 @@ class IterList(CachedIterator):
         item = self._list[index]
         del self._list[index]
         return item
+
+
+class LockingCachedIterator(CachedIterator):
+    """protect CachedIterator generator execution with an RLock"""
+
+    # subclasses may use a different lock implementation as long as it
+    # follows contextmanager protocol
+    lock_class = threading.RLock
+
+    def __init__(self, iterable):
+        # type: (Iterable) -> None
+        """Initialize
+
+        :type iterable: Iterable
+        """
+        super(LockingCachedIterator, self).__init__(iterable)
+        self._lock = self.lock_class()  # type: ContextManager[Any]
+
+    def _consume_next(self):
+        # type: () -> None
+        with self._lock:
+            super(LockingCachedIterator, self)._consume_next()
+
+    def _consume_rest(self):
+        # type: () -> None
+        with self._lock:
+            super(LockingCachedIterator, self)._consume_rest()
+
+    def _consume_up_to_index(self, index):
+        # type: (int) -> None
+        with self._lock:
+            super(LockingCachedIterator, self)._consume_up_to_index(index)
+
+
+class ThreadsafeIterTuple(LockingCachedIterator, IterTuple):
+    """IterTuple which can be safely accessed from multiple threads"""
+
+
+class ThreadsafeIterList(LockingCachedIterator, IterTuple):
+    """IterList which can be safely accessed from multiple threads.
+
+    Note that regular list manipulations are NOT protected by lock, only generator
+    access is protected
+    """
