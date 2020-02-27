@@ -195,12 +195,22 @@ class TestExtend(unittest.TestCase):
             self.assertEqual(lazy[i], i)
 
 class TestRepr(unittest.TestCase):
-    def test_simple(self):
+    def test_tuple_simple(self):
+        lazy = iterlist.IterTuple(range(3))
+        self.assertEqual(repr(lazy), '(0, 1, 2)')
+
+    def test_list_simple(self):
         lazy = iterlist.IterList(range(3))
         self.assertEqual(repr(lazy), '[0, 1, 2]')
 
 class TestEquality(unittest.TestCase):
-    def test_should_equal(self):
+    def test_should_equal_tuple(self):
+        a = iterlist.IterTuple(range(3))
+        b = iterlist.IterTuple(range(3))
+        self.assertTrue(a == b)
+        self.assertFalse(a != b)
+
+    def test_should_equal_list(self):
         a = iterlist.IterList(range(3))
         b = iterlist.IterList(range(3))
         self.assertTrue(a == b)
@@ -222,27 +232,51 @@ class TestEquality(unittest.TestCase):
 
     def test_with_list(self):
         a = iterlist.IterList(range(range_size))
-        b = list(range(range_size))
-        self.assertTrue(a == b)
-        self.assertFalse(a != b)
+        b = iterlist.IterTuple(range(range_size))
+        c = list(range(range_size))
+        # IterList/IterTuple equality: never equal even with same contents
+        self.assertTrue(a != b)
+        self.assertFalse(a == b)
+        # IterList/list equality
+        self.assertTrue(a == c)
+        self.assertFalse(a != c)
+        # IterTuple/list equality
+        self.assertTrue(b != c)
+        self.assertFalse(b == c)
 
     def test_with_tuple(self):
         a = iterlist.IterList(range(range_size))
-        b = tuple(range(range_size))
-        self.assertTrue(a == b)
-        self.assertFalse(a != b)
+        b = iterlist.IterTuple(range(range_size))
+        c = tuple(range(range_size))
+        # IterList/IterTuple equality: never equal even with same contents
+        self.assertTrue(a != b)
+        self.assertFalse(a == b)
+        # IterList/tuple equality
+        self.assertTrue(a != c)
+        self.assertFalse(a == c)
+        # IterTuple/tuple equality
+        self.assertTrue(b == c)
+        self.assertFalse(b != c)
 
     def test_with_str(self):
         a = "this is a test"
         b = iterlist.IterList(a)
-        self.assertTrue(a == b)
-        self.assertFalse(a != b)
+        self.assertTrue(a != b)
+        self.assertFalse(a == b)
+        self.assertTrue(list(a) == b)
+        self.assertFalse(list(a) != b)
 
     def test_with_non_iterable(self):
         a = iterlist.IterList([])
-        b = 0
-        self.assertFalse(a == b)
-        self.assertTrue(a != b)
+        b = iterlist.IterTuple([])
+        c = iterlist.CachedIterator([])
+        d = 0
+        self.assertFalse(a == d)
+        self.assertTrue(a != d)
+        self.assertFalse(b == d)
+        self.assertTrue(b != d)
+        self.assertFalse(c == d)
+        self.assertTrue(c != d)
 
     def test_with_bare_iterable(self):
         a = iterlist.IterList(range(range_size))
@@ -250,7 +284,7 @@ class TestEquality(unittest.TestCase):
         self.assertFalse(a == b)
         self.assertTrue(a != b)
         # checking equality shouldn't have collapsed the generator
-        b2 = tuple(b)
+        b2 = list(b)
         self.assertTrue(a == b2)
         self.assertFalse(a != b2)
 
@@ -260,7 +294,7 @@ class TestEquality(unittest.TestCase):
         self.assertFalse(a == b)
         self.assertTrue(a != b)
         # checking equality shouldn't have collapsed the generator
-        b2 = tuple(b)
+        b2 = list(b)
         self.assertFalse(a == b2)
         self.assertTrue(a != b2)
 
@@ -391,6 +425,57 @@ class TestLessThan(unittest.TestCase):
         b = iterlist.IterList([2, -1])
         self.assertTrue(a < b)
         self.assertFalse(b < a)
+
+    def test_with_list(self):
+        a = iterlist.IterList(range(range_size))
+        b = iterlist.IterTuple(range(range_size))
+        c = list(range(-1, range_size-1))
+        d = list(range(1, range_size+1))
+        e = list(range(range_size))
+        self.assertTrue(a < d)
+        self.assertFalse(a < c)
+        self.assertFalse(a < e)
+        # cannot compare IterList and tuple
+        with self.assertRaises(TypeError):
+            self.assertTrue(b < d)
+        with self.assertRaises(TypeError):
+            self.assertFalse(b < c)
+        with self.assertRaises(TypeError):
+            self.assertFalse(b < e)
+        try:
+            self.assertFalse(d < a)
+            # XXX: doesn't actually do less than, always False
+            self.assertFalse(c < a)
+            self.assertFalse(e < a)
+        except TypeError:
+            # cannot compare list and IterList on py3
+            pass
+
+    def test_with_tuple(self):
+        a = iterlist.IterTuple(range(range_size))
+        b = iterlist.IterList(range(range_size))
+        c = tuple(range(-1, range_size-1))
+        d = tuple(range(1, range_size+1))
+        e = tuple(range(range_size))
+        self.assertTrue(a < d)
+        self.assertFalse(a < c)
+        self.assertFalse(a < e)
+        # cannot compare IterList and tuple
+        with self.assertRaises(TypeError):
+            self.assertTrue(b < d)
+        with self.assertRaises(TypeError):
+            self.assertFalse(b < c)
+        with self.assertRaises(TypeError):
+            self.assertFalse(b < e)
+        try:
+            self.assertFalse(d < a)
+            # XXX: doesn't actually do less than, always False
+            self.assertFalse(c < a)
+            self.assertFalse(e < a)
+        except TypeError:
+            # cannot compare tuple and IterTuple on py3
+            pass
+
 
 
 class TestIter(unittest.TestCase):

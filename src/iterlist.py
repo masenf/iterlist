@@ -14,8 +14,8 @@ except ImportError:
     pass  # typing is only used for static analysis
 
 
-class IterList(object):
-    """a list-like interface over an iterable that stores iterated values."""
+class CachedIterator(object):
+    """a tuple-like interface over an iterable that stores iterated values."""
 
     def __init__(self, iterable):
         # type: (Iterable) -> None
@@ -115,16 +115,6 @@ class IterList(object):
         self._consume_up_to(index)
         return self._list[index]
 
-    def __setitem__(self, index, value):
-        # type: (Union[slice, int], Any) -> None
-        self._consume_up_to(index)
-        self._list[index] = value
-
-    def __delitem__(self, index):
-        # type: (Union[slice, int]) -> None
-        self._consume_up_to(index)
-        del self._list[index]
-
     def __len__(self):
         # type: () -> int
         self._consume_rest()
@@ -142,24 +132,13 @@ class IterList(object):
 
     __nonzero__ = __bool__
 
-    def extend(self, rest):
-        # type: (Iterable) -> None
-        """Extend the list with an iterable."""
-        self._iterable = itertools.chain(self._iterable, iter(rest))
-
-    def __iadd__(self, rest):
-        # type: (Iterable) -> IterList
-        self.extend(rest)
-        return self
-
     def __repr__(self):
         # type: () -> str
-        self._consume_rest()
-        return '[' + ', '.join(repr(item) for item in self._list) + ']'
+        return repr(tuple(self))
 
     def __eq__(self, other):
         # type: (Any) -> bool
-        if not isinstance(other, (IterList, Sequence)):
+        if not isinstance(other, (CachedIterator, Sequence)):
             return False
         return (all(a == b for a, b in izip(self, other))
                 and len(self) == len(other))
@@ -179,44 +158,8 @@ class IterList(object):
 
         # at this point all elements in both lists are equal
         # in this case, the shorter list is considered less
-        try:
-            self._consume_next()
-        except IndexError:
-            pass
-        try:
-            other._consume_next()
-        except IndexError:
-            pass
-        return len(self._list) < len(other._list)
-
-    def sort(self, key=None, reverse=False):
-        # type: (Optional[Callable[[Any], bool]], bool) -> None
-        """Stable sort in-place.
-
-        Note: this will consume the entire iterable
-        """
-        self._consume_rest()
-        self._list.sort(key=key, reverse=reverse)
-
-    def reverse(self):
-        # type: () -> None
-        """Reverse in-place.
-
-        Note: this will consume the entire iterable
-        """
-        self._consume_rest()
-        self._list.reverse()
-
-    def pop(self, index=-1):
-        # type: (int) -> Any
-        """Remove and return item at index (default last).
-
-        Raises IndexError if list is empty or index is out of range.
-        """
-        self._consume_up_to(index)
-        item = self._list[index]
-        del self._list[index]
-        return item
+        # NOTE: calling len will consume the remainder of both iterables
+        return len(self) < len(other)
 
     def index(self, item, start=0, stop=None):
         # type: (Any, int, Optional[int]) -> int
@@ -241,6 +184,84 @@ class IterList(object):
         """
         self._consume_rest()
         return self._list.count(item)
+
+    def __iter__(self):
+        # type: () -> Iterator[Any]
+        ix = 0
+        try:
+            # Use a while loop over the list index to ensure all items are
+            # yielded, even if some of the iterable is consumed while __iter__
+            # is stopped
+            while True:
+                self._consume_up_to_index(ix)
+                yield self._list[ix]
+                ix += 1
+        except IndexError:
+            return
+
+
+class IterTuple(CachedIterator):
+    """a tuple-like interface over an iterable that stores iterated values."""
+
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if not isinstance(other, (tuple, IterTuple)):
+            return False
+        return super(IterTuple, self).__eq__(other)
+
+    def __lt__(self, other):
+        # type: (Any) -> bool
+        if not isinstance(other, (tuple, IterTuple)):
+            raise TypeError(
+                "'<' not supported between instances of {!r} and {!r}".format(
+                    type(self).__name__, type(other).__name__,
+                ),
+            )
+        return super(IterTuple, self).__lt__(other)
+
+
+class IterList(CachedIterator):
+    """a mutable list-like interface over an iterable that stores iterated values."""
+
+    def __repr__(self):
+        # type: () -> str
+        return repr(list(self))
+
+    def __eq__(self, other):
+        # type: (Any) -> bool
+        if not isinstance(other, (list, IterList)):
+            return False
+        return super(IterList, self).__eq__(other)
+
+    def __lt__(self, other):
+        # type: (Any) -> bool
+        if not isinstance(other, (list, IterList)):
+            raise TypeError(
+                "'<' not supported between instances of {!r} and {!r}".format(
+                    type(self).__name__, type(other).__name__,
+                ),
+            )
+        return super(IterList, self).__lt__(other)
+
+    def __setitem__(self, index, value):
+        # type: (Union[slice, int], Any) -> None
+        self._consume_up_to(index)
+        self._list[index] = value
+
+    def __delitem__(self, index):
+        # type: (Union[slice, int]) -> None
+        self._consume_up_to(index)
+        del self._list[index]
+
+    def extend(self, rest):
+        # type: (Iterable) -> None
+        """Extend the list with an iterable."""
+        self._iterable = itertools.chain(self._iterable, iter(rest))
+
+    def __iadd__(self, rest):
+        # type: (Iterable) -> IterList
+        self.extend(rest)
+        return self
 
     def remove(self, item):
         # type: (Any) -> None
@@ -276,16 +297,31 @@ class IterList(object):
         del self._list[:]  # self._list.clear() for py3.3+
         self._iterable = iter([])
 
-    def __iter__(self):
-        # type: () -> Iterator[Any]
-        ix = 0
-        try:
-            # Use a while loop over the list index to ensure all items are
-            # yielded, even if some of the iterable is consumed while __iter__
-            # is stopped
-            while True:
-                self._consume_up_to_index(ix)
-                yield self._list[ix]
-                ix += 1
-        except IndexError:
-            return
+    def sort(self, key=None, reverse=False):
+        # type: (Optional[Callable[[Any], bool]], bool) -> None
+        """Stable sort in-place.
+
+        Note: this will consume the entire iterable
+        """
+        self._consume_rest()
+        self._list.sort(key=key, reverse=reverse)
+
+    def reverse(self):
+        # type: () -> None
+        """Reverse in-place.
+
+        Note: this will consume the entire iterable
+        """
+        self._consume_rest()
+        self._list.reverse()
+
+    def pop(self, index=-1):
+        # type: (int) -> Any
+        """Remove and return item at index (default last).
+
+        Raises IndexError if list is empty or index is out of range.
+        """
+        self._consume_up_to(index)
+        item = self._list[index]
+        del self._list[index]
+        return item
