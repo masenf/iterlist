@@ -1,5 +1,8 @@
+import concurrent.futures
 import itertools
 import math
+import threading
+import time
 import unittest
 
 import iterlist
@@ -501,6 +504,54 @@ class TestIter(unittest.TestCase):
                 lazy[5]
                 self.assertEqual(len(lazy._list), 6)
             self.assertEqual(v, orig[ix])
+
+
+class TestConcurrentAccess(unittest.TestCase):
+    def gen_test_multiple_iterators(self, iterlist_clz, delay=0.005, n_threads=5):
+        orig = list(range(range_size))
+        delay_generator = (ix for ix in orig if time.sleep(delay) is None)
+        lazy = iterlist_clz(delay_generator)
+        with concurrent.futures.ThreadPoolExecutor(n_threads) as tp:
+            future_results = [tp.submit(lambda: [x for x in lazy]) for _ in
+                              range(n_threads)]
+            results = [f.result(timeout=1) for f in future_results]
+        for r in results:
+            self.assertEqual(r, orig)
+
+    def test_multiple_iterators_itertuple(self):
+        self.gen_test_multiple_iterators(iterlist_clz=iterlist.ThreadsafeIterTuple)
+
+    def test_multiple_iterators_iterlist(self):
+        self.gen_test_multiple_iterators(iterlist_clz=iterlist.ThreadsafeIterList)
+
+    def test_multiple_iterators_no_lock(self):
+        with self.assertRaises(iterlist.ConcurrentGeneratorAccess) as cga:
+            self.gen_test_multiple_iterators(iterlist_clz=iterlist.IterTuple)
+        with self.assertRaises(iterlist.ConcurrentGeneratorAccess) as cga:
+            self.gen_test_multiple_iterators(iterlist_clz=iterlist.IterList)
+
+    def gen_test_concurrent_length(self, iterlist_clz, delay=0.005, n_threads=5):
+        orig = list(range(range_size))
+        delay_generator = (ix for ix in orig if time.sleep(delay) is None)
+        lazy = iterlist_clz(delay_generator)
+        with concurrent.futures.ThreadPoolExecutor(n_threads) as tp:
+            future_results = [tp.submit(lambda: len(lazy)) for _ in
+                              range(n_threads)]
+            results = [f.result(timeout=1) for f in future_results]
+        for r in results:
+            self.assertEqual(r, len(orig))
+
+    def test_concurrent_length_itertuple(self):
+        self.gen_test_concurrent_length(iterlist_clz=iterlist.ThreadsafeIterTuple)
+
+    def test_concurrent_length_iterlist(self):
+        self.gen_test_concurrent_length(iterlist_clz=iterlist.ThreadsafeIterList)
+
+    def test_concurrent_length_no_lock(self):
+        with self.assertRaises(iterlist.ConcurrentGeneratorAccess) as cga:
+            self.gen_test_concurrent_length(iterlist_clz=iterlist.IterTuple)
+        with self.assertRaises(iterlist.ConcurrentGeneratorAccess) as cga:
+            self.gen_test_concurrent_length(iterlist_clz=iterlist.IterList)
 
 
 if __name__ == '__main__':
